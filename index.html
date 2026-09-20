@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORBITSAT-AI | Autonomous Self-Modulating Satellite Payload & SatCom Mesh Model</title>
+    <meta name="description" content="Prototype application model for AI-enabled self-modulating spacecraft payload, self-reconfiguring reflector antenna arrays, and inter-satellite optical laser link mesh.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        space: {
+                            950: '#02040a',
+                            900: '#050a18',
+                            800: '#0b142c',
+                            700: '#142247',
+                            600: '#1e3366',
+                        },
+                        cyan: {
+                            glow: '#00f3ff',
+                        },
+                        emerald: {
+                            glow: '#00ffaa',
+                        },
+                        amber: {
+                            glow: '#ffb703',
+                        },
+                        crimson: {
+                            glow: '#ff2a6d',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        .shadow-glow-cyan {
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.25);
+        }
+        .shadow-glow-emerald {
+            box-shadow: 0 0 25px rgba(0, 255, 170, 0.25);
+        }
+        .shadow-glow-amber {
+            box-shadow: 0 0 25px rgba(255, 183, 3, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-space-950 text-slate-100 font-sans antialiased overflow-x-hidden min-h-screen">
+    <!-- Background Grid -->
+    <div class="fixed inset-0 bg-grid-pattern opacity-20 pointer-events-none z-0"></div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 bg-space-900/80 backdrop-blur-xl border-b border-cyan-500/20 px-4 lg:px-8 py-3">
+        <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Brand -->
+            <div class="flex items-center space-x-3">
+                <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-400/30 text-cyan-400 shadow-glow-cyan">
+                    <i data-lucide="satellite" class="w-6 h-6 animate-pulse text-cyan-400"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-display font-bold text-xl tracking-wider text-white">ORBITSAT<span class="text-cyan-400">-AI</span></span>
+                        <span class="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">PORT 8085</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono">Self-Modulating Satellite Payload & Laser Swarm Mesh OS</p>
+                </div>
+            </div>
+
+            <!-- Header Status Metrics -->
+            <div class="hidden lg:flex items-center space-x-6 text-xs font-mono bg-space-800/80 px-4 py-2 rounded-xl border border-slate-700/50">
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-400">SATELLITE NODE:</span>
+                    <span class="text-cyan-300 font-semibold">AegisSat-09 (GEO Orbit)</span>
+                </div>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-400">MODULATION:</span>
+                    <span id="header-modcod" class="text-emerald-400 font-bold">256-APSK (2.4 Gbps)</span>
+                </div>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-400">REFLECTOR SHAPE:</span>
+                    <span id="header-reflector-state" class="text-cyan-400 font-bold">OPTIMAL PARABOLIC</span>
+                </div>
+            </div>
+
+            <!-- Quick Action & Audio -->
+            <div class="flex items-center space-x-3">
+                <button id="audio-toggle" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-space-800 hover:bg-space-700 border border-slate-700 text-xs font-mono text-slate-300 transition-all">
+                    <i data-lucide="volume-2" class="w-4 h-4 text-cyan-400"></i>
+                    <span id="audio-label">AUDIO: ON</span>
+                </button>
+                <div class="flex items-center space-x-2 bg-cyan-500/10 border border-cyan-500/30 px-3 py-1.5 rounded-lg">
+                    <i data-lucide="radio-receiver" class="w-4 h-4 text-cyan-400"></i>
+                    <span class="text-xs font-mono text-slate-300">SWARM LINK:</span>
+                    <span id="global-swarm-status" class="text-xs font-mono font-bold text-emerald-400">6/6 MESH NODES</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="relative z-10 max-w-[1920px] mx-auto p-4 lg:p-6 space-y-6">
+
+        <!-- Top Telemetry Overview Banner -->
+        <section class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-cyan-500/20 p-5 shadow-2xl">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                
+                <!-- Stat 1: Self-Modulating Antenna De-Warping -->
+                <div class="flex items-center space-x-4 bg-space-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="p-3 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        <i data-lucide="disc" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-mono">REFLECTOR DE-WARPING</p>
+                        <div class="flex items-baseline space-x-2">
+                            <h3 id="stat-dewarp" class="text-2xl font-display font-bold text-white">99.4%</h3>
+                            <span id="stat-dewarp-badge" class="text-xs font-mono text-emerald-400 font-bold">SMART SMA</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Parabolic Array Auto-Morph</p>
+                    </div>
+                </div>
+
+                <!-- Stat 2: Dynamic Modulation & Coding (ModCod) -->
+                <div class="flex items-center space-x-4 bg-space-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="p-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-mono">DYNAMIC MODCOD RATE</p>
+                        <div class="flex items-baseline space-x-2">
+                            <h3 id="stat-modcod" class="text-2xl font-display font-bold text-white">2.4 Gbps</h3>
+                            <span class="text-xs font-mono text-emerald-400">256-APSK</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Scintillation Adaptive Tuning</p>
+                    </div>
+                </div>
+
+                <!-- Stat 3: Solar Array Self-Healing Tiles -->
+                <div class="flex items-center space-x-4 bg-space-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="p-3 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <i data-lucide="sun" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-mono">SOLAR WING INTEGRITY</p>
+                        <div class="flex items-baseline space-x-2">
+                            <h3 id="stat-solar" class="text-2xl font-display font-bold text-white">97.8%</h3>
+                            <span class="text-xs font-mono text-amber-400">3.8 kW</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Self-Healing Perovskite Layer</p>
+                    </div>
+                </div>
+
+                <!-- Stat 4: Inter-Satellite Optical Laser Link (ISL) -->
+                <div class="flex items-center space-x-4 bg-space-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="p-3 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                        <i data-lucide="zap" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-mono">OPTICAL ISL MESH LINK</p>
+                        <div class="flex items-baseline space-x-2">
+                            <h3 id="stat-isl" class="text-2xl font-display font-bold text-white">10 Gbps</h3>
+                            <span class="text-xs font-mono text-violet-400">1550 nm</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Inter-Satellite Laser Relay</p>
+                    </div>
+                </div>
+
+                <!-- Stat 5: AI Swarm Re-Routing Engine -->
+                <div class="flex items-center space-x-4 bg-space-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="p-3 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        <i data-lucide="cpu" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-mono">AI RE-ROUTING ENGINE</p>
+                        <div class="flex items-baseline space-x-2">
+                            <h3 id="stat-reroute" class="text-2xl font-display font-bold text-white">0.4 ms</h3>
+                            <span class="text-xs font-mono text-cyan-400">LATENCY</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Zero-Packet-Loss Failover</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace Grid: 3 Columns -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT COLUMN: 3D Satellite & Reflector Self-Modulating Visualizer (5 Cols) -->
+            <div class="lg:col-span-5 space-y-6 flex flex-col">
+                
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-cyan-500/20 p-5 flex flex-col flex-1 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="box" class="w-5 h-5 text-cyan-400"></i>
+                            <h2 class="font-display font-bold text-white text-base">3D VEHICLE & SELF-HEALING MODEL</h2>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="btn-view-sat" class="px-2.5 py-1 text-xs font-mono font-bold rounded bg-cyan-500 text-space-950 shadow-glow-cyan">
+                                🛰️ SATELLITE
+                            </button>
+                            <button id="btn-view-rocket" class="px-2.5 py-1 text-xs font-mono rounded bg-space-900 text-slate-300 border border-slate-700 hover:text-cyan-400">
+                                🚀 ROCKET VEHICLE
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3D Canvas Viewport -->
+                    <div class="relative w-full h-[360px] rounded-xl bg-space-950 border border-slate-800 overflow-hidden cursor-grab active:cursor-grabbing">
+                        <div id="sat-canvas-container" class="w-full h-full"></div>
+                        
+                        <!-- Overlay Info -->
+                        <div class="absolute bottom-3 left-3 pointer-events-none bg-space-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50 text-[11px] font-mono text-slate-300">
+                            <span id="canvas-overlay-label" class="text-cyan-400 font-bold">AegisSat-09 Satellite Vehicle</span> • <span id="canvas-overlay-sub">3D Bus + Solar Array Wings + Nitinol Dish</span>
+                        </div>
+
+                        <!-- Impact Overlay Alert -->
+                        <div id="sat-impact-badge" class="hidden absolute top-3 right-3 bg-rose-950/80 border border-rose-500 text-rose-300 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-mono animate-bounce flex items-center space-x-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                            <span id="sat-impact-text">SOLAR FLARE DE-TUNING DETECTED</span>
+                        </div>
+                    </div>
+
+                    <!-- Photorealistic 8K Vehicle Render Spec Box -->
+                    <div id="vehicle-spec-box" class="mt-4 p-3 rounded-xl bg-space-900/80 border border-cyan-500/30 flex items-center space-x-3">
+                        <img id="vehicle-img" src="satellite_render.jpg" alt="Vehicle Render" class="w-20 h-20 rounded-lg object-cover border border-cyan-400/40 shadow-glow-cyan">
+                        <div class="flex-1 text-xs font-mono space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span id="vehicle-name" class="font-bold text-white font-display">AegisSat-09 Spacecraft</span>
+                                <span id="vehicle-heal-badge" class="px-2 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">NOMINAL (99.4%)</span>
+                            </div>
+                            <p id="vehicle-desc" class="text-slate-400 text-[11px]">Nitinol Shape-Memory Alloy Reflector + Perovskite Self-Repair Solar Wings</p>
+                            <div class="w-full bg-space-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                                <div id="vehicle-integrity-bar" class="bg-emerald-400 h-full w-[99.4%] transition-all duration-300"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Self-Modulating & Dual Self-Healing Simulation Controls -->
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-slate-700/60 p-5 space-y-4 shadow-xl">
+                    <div class="flex items-center space-x-2 border-b border-slate-700/60 pb-3">
+                        <i data-lucide="sliders" class="w-5 h-5 text-amber-400"></i>
+                        <h3 class="font-display font-bold text-white text-base">SELF-HEALING SIMULATION CONTROLS</h3>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="btn-solar-flare" class="p-2.5 rounded-xl bg-space-900 hover:bg-space-700 border border-amber-500/30 text-amber-300 font-mono text-xs text-left transition-all">
+                            <i data-lucide="sun" class="w-4 h-4 mb-1 text-amber-400"></i>
+                            <div class="font-bold">Solar Flare</div>
+                            <div class="text-[10px] text-slate-400">Array De-tune</div>
+                        </button>
+
+                        <button id="btn-debris-strike" class="p-2.5 rounded-xl bg-space-900 hover:bg-space-700 border border-rose-500/30 text-rose-300 font-mono text-xs text-left transition-all">
+                            <i data-lucide="disc" class="w-4 h-4 mb-1 text-rose-400"></i>
+                            <div class="font-bold">Debris Strike</div>
+                            <div class="text-[10px] text-slate-400">Hull Crack</div>
+                        </button>
+
+                        <button id="btn-scintillation" class="p-2.5 rounded-xl bg-space-900 hover:bg-space-700 border border-cyan-500/30 text-cyan-300 font-mono text-xs text-left transition-all">
+                            <i data-lucide="wifi-off" class="w-4 h-4 mb-1 text-cyan-400"></i>
+                            <div class="font-bold">Scintillation</div>
+                            <div class="text-[10px] text-slate-400">RF Attenuation</div>
+                        </button>
+                    </div>
+
+                    <!-- Dual Self-Healing Trigger Action Buttons -->
+                    <div class="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button id="btn-sat-heal" class="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-space-950 font-display font-bold text-xs tracking-wider shadow-glow-emerald transition-all flex items-center justify-center space-x-1.5">
+                            <i data-lucide="zap" class="w-4 h-4"></i>
+                            <span>⚡ SATELLITE SELF-HEAL</span>
+                        </button>
+
+                        <button id="btn-rocket-heal" class="py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-space-950 font-display font-bold text-xs tracking-wider shadow-glow-cyan transition-all flex items-center justify-center space-x-1.5">
+                            <i data-lucide="flame" class="w-4 h-4"></i>
+                            <span>🚀 ROCKET PLASMA REPAIR</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDDLE COLUMN: Dynamic ModCod Constellation Diagram & Mesh Routing (4 Cols) -->
+            <div class="lg:col-span-4 space-y-6 flex flex-col">
+
+                <!-- ModCod Constellation Canvas Diagram -->
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-cyan-500/20 p-5 shadow-2xl">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="grid" class="w-5 h-5 text-emerald-400"></i>
+                            <h3 class="font-display font-bold text-white text-base">MODCOD CONSTELLATION DIAGRAM</h3>
+                        </div>
+                        <span id="constellation-mode-text" class="text-xs font-mono text-emerald-400 font-bold">256-APSK</span>
+                    </div>
+
+                    <div class="relative w-full h-[240px] rounded-xl bg-space-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+                        <canvas id="constellation-canvas" class="w-full h-full"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mt-3 text-xs font-mono">
+                        <div class="p-2 rounded bg-space-950 border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">EVM (ERROR VECTOR MAGNITUDE)</span>
+                            <span id="constellation-evm" class="text-emerald-400 font-bold">1.8% (EXCELLENT)</span>
+                        </div>
+                        <div class="p-2 rounded bg-space-950 border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">SYMBOL RATE</span>
+                            <span id="constellation-rate" class="text-cyan-400 font-bold">300 Msymbols/s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Swarm Mesh Relay Router Board -->
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-slate-700/60 p-5 space-y-3 shadow-xl">
+                    <div class="flex items-center space-x-2 border-b border-slate-700/60 pb-3">
+                        <i data-lucide="share-2" class="w-5 h-5 text-violet-400"></i>
+                        <h3 class="font-display font-bold text-white text-base">INTER-SATELLITE MESH ROUTER</h3>
+                    </div>
+
+                    <div class="space-y-2 text-xs font-mono">
+                        <div class="flex justify-between p-2 rounded-lg bg-space-950 border border-slate-800">
+                            <span class="text-slate-400">PRIMARY NODE LINK:</span>
+                            <span id="mesh-link-primary" class="text-emerald-400 font-bold">AegisSat-09 (LOCAL)</span>
+                        </div>
+                        <div class="flex justify-between p-2 rounded-lg bg-space-950 border border-slate-800">
+                            <span class="text-slate-400">ISL RELAY BACKUP:</span>
+                            <span id="mesh-link-backup" class="text-cyan-400 font-bold">AegisSat-12 (OPTICAL 10G)</span>
+                        </div>
+                        <div class="flex justify-between p-2 rounded-lg bg-space-950 border border-slate-800">
+                            <span class="text-slate-400">GROUND DOWNLINK:</span>
+                            <span class="text-slate-200">Goldstone DSN / Svalbard</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Telemetry Stream & System Logs (3 Cols) -->
+            <div class="lg:col-span-3 space-y-6 flex flex-col">
+
+                <!-- Real-Time SatCom Oscilloscope Charts -->
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-cyan-500/20 p-5 space-y-4 shadow-2xl">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="line-chart" class="w-5 h-5 text-cyan-400"></i>
+                            <h3 class="font-display font-bold text-white text-base">SATCOM SIGNAL TELEMETRY</h3>
+                        </div>
+                        <span class="text-[10px] font-mono text-cyan-400">REAL-TIME</span>
+                    </div>
+
+                    <!-- Carrier SNR Chart -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-slate-400">Carrier SNR (dB):</span>
+                            <span id="chart-snr-val" class="text-cyan-400 font-bold">24.2 dB</span>
+                        </div>
+                        <div class="h-28 bg-space-950 rounded-xl p-2 border border-slate-800">
+                            <canvas id="snr-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Antenna Reflector Alignment Chart -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-slate-400">Reflector Shape Integrity (%):</span>
+                            <span id="chart-reflector-val" class="text-emerald-400 font-bold">99.4%</span>
+                        </div>
+                        <div class="h-28 bg-space-950 rounded-xl p-2 border border-slate-800">
+                            <canvas id="reflector-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Event Telemetry Stream -->
+                <div class="bg-space-800/60 backdrop-blur-md rounded-2xl border border-slate-700/60 p-5 flex flex-col flex-1 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="terminal" class="w-5 h-5 text-emerald-400"></i>
+                            <h3 class="font-display font-bold text-white text-base">PAYLOAD LOG STREAM</h3>
+                        </div>
+                    </div>
+                    <div id="sat-log-stream" class="space-y-2 font-mono text-[11px] h-48 overflow-y-auto text-slate-300 scrollbar-thin">
+                        <div class="log-entry text-slate-400">
+                            <span class="text-slate-500">[00:00:01]</span> <span class="text-cyan-400">SYS_INIT:</span> OrbitSat-AI Self-Modulating Payload Online. Port 8085 listener active.
+                        </div>
+                        <div class="log-entry text-slate-400">
+                            <span class="text-slate-500">[00:00:03]</span> <span class="text-emerald-400">MODCOD:</span> 256-APSK Carrier modulation locked at 2.4 Gbps downlink.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-8 border-t border-slate-800 bg-space-950 py-4 px-6 text-center text-xs font-mono text-slate-500">
+        <div class="max-w-[1920px] mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <span>OrbitSat-AI Self-Modulating Satellite Payload Prototype Model</span> • <span class="text-slate-400">Running on http://localhost:8085</span>
+            </div>
+            <div>
+                <span>Dynamic ModCod Adaptive Transceiver + Nitinol Parabolic Dish Self-De-Warping</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- App Engine Script -->
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
